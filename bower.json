@@ -1,0 +1,21 @@
+{
+  "name": "my-own-angular",
+  "description": "Creating my own angularJS",
+  "main": "app.js",
+  "authors": [
+    "Paulo Roberto"
+  ],
+  "license": "MIT",
+  "moduleType": [],
+  "homepage": "",
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "test",
+    "tests"
+  ],
+  "dependencies": {
+    "lodash": "^4.13.1"
+  }
+}

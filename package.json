@@ -1,0 +1,22 @@
+{
+  "name": "my-own-angular",
+  "version": "0.0.1",
+  "description": "Creating my own angularJS",
+  "main": "app.js",
+  "directories": {
+    "test": "test"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Paulo Roberto",
+  "license": "MIT",
+  "devDependencies": {
+    "grunt": "^1.0.1",
+    "grunt-contrib-jshint": "^1.0.0",
+    "karma": "^1.1.0",
+    "karma-chrome-launcher": "^1.0.1",
+    "karma-jasmine": "^1.0.2"
+  },
+  "dependencies": {}
+}

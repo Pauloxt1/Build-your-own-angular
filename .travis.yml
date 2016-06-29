@@ -3,7 +3,10 @@ node_js:
 - '5'
 before_install:
   - npm install -g bower
+  - npm install -g grunt-cli
   - npm install -g karma-cli
   - bower install
+before_script:
+  - grunt
 script:
   - karma start config/karma.config.js --single-run --browsers PhantomJS

@@ -6,6 +6,7 @@ module.exports = (grunt) => {
       jshint:{
         all: ['src/**/*.js', 'test/**/*.js'],
         options:{
+          globalstrict: true,
           globals:{
             _:false,
             $: false,
@@ -15,7 +16,8 @@ module.exports = (grunt) => {
             expect: false,
             beforeEach: false,
             afterEach: false,
-            sinon: false
+            sinon: false,
+            Scope: false
           },
           browser:true,
           devel:true

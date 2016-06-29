@@ -23,7 +23,8 @@ describe("Digest", function(){
   it("calls the listener function of watch on first $digest", function(){
     var watchFn = function(){
       return 'wat';
-    }
+    };
+
     var listenerFn = jasmine.createSpy();
     scope.$watch(watchFn, listenerFn);
 

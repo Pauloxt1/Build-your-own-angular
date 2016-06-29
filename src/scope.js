@@ -8,9 +8,9 @@ Scope.prototype.$watch = function(watchFn, listenerFn){
   var watcher = {
     watchFn: watchFn,
     listenerFn: listenerFn
-  }
+  };
   this.$$watchers.push(watcher);
-}
+};
 
 Scope.prototype.$digest = function(){
     var self = this;
@@ -26,4 +26,4 @@ Scope.prototype.$digest = function(){
     }
 
   });
-}
+};

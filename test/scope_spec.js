@@ -73,4 +73,87 @@ describe("Digest", function(){
 
   });
 
+  it("calls listener when watch value is first undefined", function(){
+    scope.counter = 0;
+    scope.$watch(
+      function(scope){
+        return scope.someValue;
+      },
+      function(newValue, oldValue, scope){
+        scope.counter++;
+      }
+    );
+
+    scope.$digest();
+    expect(scope.counter).toBe(1);
+  });
+
+  it("calls listener with new value as old value the first time", function(){
+    scope.someValue = 123;
+    var oldValueGiven;
+
+    scope.$watch(function(scope){
+        return scope.someValue;
+    }, function(newValue, oldValue, scope){
+      oldValueGiven = oldValue;
+    });
+
+    scope.$digest();
+    expect(oldValueGiven).toBe(123);
+  });
+
+  it("may haver watchers that omit the listner function", function(){
+    var watchFn = jasmine.createSpy();
+    scope.$watch(watchFn);
+    scope.$digest();
+    expect(watchFn).toHaveBeenCalled();
+  });
+
+  it("Triggers chained watchers in the same digest", function(){
+    scope.name = 'Paulo';
+
+    scope.$watch(function(scope){
+      return scope.nameUpper;
+    }, function(newValue, oldValue, scope){
+      if(newValue){
+        scope.initial = newValue.substring(0,1)+'.';
+      }
+    });
+
+    scope.$watch(function(scope){
+      return scope.name;
+    }, function(newValue, oldValue, scope){
+      scope.nameUpper = newValue.toUpperCase();
+    });
+
+    scope.$digest();
+    expect(scope.initial).toBe('P.');
+
+    scope.name = 'Bob';
+    scope.$digest();
+    expect(scope.initial).toBe('B.');
+
+  });
+
+  it("gives up on the watches after 10 interations", function(){
+    scope.counterA = 0;
+    scope.counterB = 0;
+
+    scope.$watch(function(scope){
+      return scope.counterA;
+    }, function(newValue, oldValue, scope){
+        scope.counterB++;
+    });
+
+    scope.$watch(function(scope){
+      return scope.counterB;
+    }, function(newValue, oldValue, scope){
+      scope.counterA++;
+    });
+
+    expect(function(){
+      scope.$digest();
+    }).toThrow();
+  });
+
 });

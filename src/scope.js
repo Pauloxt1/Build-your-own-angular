@@ -59,4 +59,4 @@ Scope.prototype.$$areEqual = function(newValue, oldValue, valueEq){
   } else {
     return newValue === oldValue || (typeof newValue == 'number' && typeof oldValue == 'number' && isNaN(newValue) && isNaN(oldValue));
   }
-}
+};

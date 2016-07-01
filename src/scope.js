@@ -6,6 +6,7 @@ function initWatchVal(){
 
 function Scope(){
   this.$$watchers = [];
+  this.$$asyncQueue = [];
   this.$$lastDirtyWatch = null;
 }
 
@@ -45,6 +46,10 @@ Scope.prototype.$digest = function(){
   var dirty;
   this.$$lastDirtyWatch = null;
   do{
+    while(this.$$asyncQueue.length){
+      var asyncTask = this.$$asyncQueue.shift();
+      asyncTask.scope.$eval(asyncTask.expression);
+    }
     if(dirty && !(ttl--)){
       throw "10 digest interations reached";
     }
@@ -60,3 +65,19 @@ Scope.prototype.$$areEqual = function(newValue, oldValue, valueEq){
     return newValue === oldValue || (typeof newValue == 'number' && typeof oldValue == 'number' && isNaN(newValue) && isNaN(oldValue));
   }
 };
+
+Scope.prototype.$eval = function(expr, locals){
+  return expr(this, locals);
+}
+
+Scope.prototype.$apply = function(expr){
+  try{
+    return this.$eval(expr);
+  } finally{
+      this.$digest();
+  }
+};
+
+Scope.prototype.$evalAsync = function(expr){
+  this.$$asyncQueue.push({scope: this, expression: expr});
+}

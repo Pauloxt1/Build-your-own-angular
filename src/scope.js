@@ -274,3 +274,94 @@ Scope.prototype.$destroy = function(){
   }
   this.$$watchers = null;
 };
+
+Scope.prototype.$watchCollection = function(watchFn, listerFn){
+  var newValue;
+  var oldValue;
+  var self = this;
+  var oldLength;
+  var veryOldValue;
+  var trackVeryOldValue = (listerFn.length > 1);
+  var changeCount = 0;
+  var firstRun = true;
+
+  var internalWatchFn = function(scope){
+    var newLength;
+    newValue = watchFn(scope);
+
+    if(_.isObject(newValue)){
+      if(_.isArrayLike(newValue)){
+        if(!_.isArray(oldValue)){
+          changeCount++;
+          oldValue = [];
+        }
+        if(newValue.length !== oldValue.length){
+          changeCount++;
+          oldValue.length = newValue.length;
+        }
+        _.forEach(newValue, function(newItem, i){
+          var bothNaN = (_.isNaN(newItem) && _.isNaN(oldValue[i]));
+
+          if(!bothNaN && newItem != oldValue[i]){
+              changeCount++;
+              oldValue[i] = newItem;
+          }
+        });
+
+      } else {
+          if(!_.isObject(oldValue) || _.isArrayLike(oldValue)){
+            changeCount++;
+            oldValue = {};
+            oldLength = 0;
+          }
+          newLength = 0;
+          _.forOwn(newValue, function(newVal, key){
+            newLength++;
+            var bothNaN = (_.isNaN(newVal) && _.isNaN(oldValue[key]));
+
+            if(oldValue.hasOwnProperty(key)){
+              if(!bothNaN && oldValue[key] !== newVal){
+                changeCount++;
+                oldValue[key] = newVal;
+              }
+            } else{
+              changeCount++;
+              oldLength++;
+              oldValue[key] = newVal;
+            }
+          });
+          if(oldLength > newLength){
+          _.forOwn(oldValue, function(oldVal, key){
+            if(!newValue.hasOwnProperty(key)){
+              changeCount++;
+              oldLength--;
+              delete oldValue[key];
+            }
+          });
+        }
+      }
+
+    } else {
+      if(!self.$$areEqual(newValue, oldValue, false)){
+          changeCount++;
+      }
+      oldValue = newValue;
+    }
+
+    return changeCount;
+  };
+  var internalListenerFn = function(){
+    if(firstRun){
+      listerFn(newValue, newValue, self);
+      firstRun = false;
+    } else {
+      listerFn(newValue, veryOldValue, self);
+    }
+
+    if(trackVeryOldValue){
+      veryOldValue = _.clone(newValue);
+    }
+  };
+
+  return this.$watch(internalWatchFn, internalListenerFn);
+};

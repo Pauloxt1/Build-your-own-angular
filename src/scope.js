@@ -14,6 +14,7 @@ function Scope(){
   this.$$phase = null;
   this.$$applyAsyncId = null;
   this.$root = this;
+  this.$$listeners = {};
 }
 
 Scope.prototype.$watch = function(watchFn, listenerFn, valueEq){
@@ -250,6 +251,7 @@ Scope.prototype.$new = function(isolated, parent){
   parent.$$children.push(child);
   child.$$children = [];
   child.$$watchers = [];
+  child.$$listeners = {};
   child.$parent = parent;
   return child;
 };
@@ -364,4 +366,78 @@ Scope.prototype.$watchCollection = function(watchFn, listerFn){
   };
 
   return this.$watch(internalWatchFn, internalListenerFn);
+};
+
+
+Scope.prototype.$on = function(eventName, listener){
+  var listeners = this.$$listeners[eventName];
+
+  if(!listeners){
+   this.$$listeners[eventName] = listeners = [];
+  }
+  listeners.push(listener);
+
+  return function(){
+    var index = listeners.indexOf(listener);
+    if(index >= 0){
+      listeners[index] = null;
+    }
+  };
+};
+
+Scope.prototype.$emit = function(eventName){
+    var propagationStopped = false;
+    var event = {
+      name: eventName,
+      targetScope: this,
+      stopPropagation: function(){
+        propagationStopped = true;
+      }
+    };
+    var aditionalArgs = Array.prototype.slice.call(arguments, 1);
+    var listenerArgs = [event].concat(aditionalArgs);
+    var scope = this;
+
+    do{
+     event.currentScope = scope;
+     scope.$$fireEventOnScope(eventName, listenerArgs);
+     scope = scope.$parent;
+   }while(scope && !propagationStopped);
+
+   event.currentScope = null;
+
+   return event;
+};
+
+
+Scope.prototype.$broadcast = function(eventName){
+    var event = {name: eventName, targetScope: this};
+    var aditionalArgs = Array.prototype.slice.call(arguments, 1);
+    var listenerArgs = [event].concat(aditionalArgs);
+
+    this.$$everyScope(function(scope){
+      event.currentScope = scope;
+      scope.$$fireEventOnScope(eventName, listenerArgs);
+      return true;
+    });
+
+    event.currentScope = null;
+
+    return event;
+};
+
+Scope.prototype.$$fireEventOnScope = function(eventName, listenerArgs){
+  var listeners = this.$$listeners[eventName] || [];
+  var i = 0;
+
+  while(i < listeners.length){
+    if(listeners[i] === null){
+      listeners.splice(i, 1);
+    } else {
+      listeners[i].apply(null, listenerArgs);
+      i++;
+    }
+  }
+
+  return event;
 };

@@ -63,7 +63,7 @@ Scope.prototype.$$digestOnce = function(){
             }
           }
         } catch(e){
-          console.log(e);
+          console.error(e);
         }
       });
       return continueLoop;
@@ -89,7 +89,7 @@ Scope.prototype.$digest = function(){
       var asyncTask = this.$$asyncQueue.shift();
       asyncTask.scope.$eval(asyncTask.expression);
     } catch(e){
-      console.log(e);
+      console.error(e);
     }
   }
 
@@ -108,7 +108,7 @@ Scope.prototype.$digest = function(){
       try{
         this.$$postDigestQueue.shift()();
       } catch(e){
-        console.log(e);
+        console.error(e);
       }
     }
 
@@ -178,7 +178,7 @@ Scope.prototype.$$flushApplyAsync = function(a){
     try{
       this.$$applyAsyncQueue.shift()();
     } catch(e){
-      console.log(e);
+      console.error(e);
     }
   }
   this.$root.$$applyAsyncId = null;
@@ -267,6 +267,7 @@ Scope.prototype.$$everyScope = function(fn){
 };
 
 Scope.prototype.$destroy = function(){
+  this.$broadcast('$destroy');
   if(this.$parent){
     var siblings = this.$parent.$$children;
     var indexOfThis = siblings.indexOf(this);
@@ -275,6 +276,7 @@ Scope.prototype.$destroy = function(){
     }
   }
   this.$$watchers = null;
+  this.$$listeners = {};
 };
 
 Scope.prototype.$watchCollection = function(watchFn, listerFn){
@@ -392,6 +394,9 @@ Scope.prototype.$emit = function(eventName){
       targetScope: this,
       stopPropagation: function(){
         propagationStopped = true;
+      },
+      preventDefault: function(){
+        this.defaultPrevented = true;
       }
     };
     var aditionalArgs = Array.prototype.slice.call(arguments, 1);
@@ -411,7 +416,13 @@ Scope.prototype.$emit = function(eventName){
 
 
 Scope.prototype.$broadcast = function(eventName){
-    var event = {name: eventName, targetScope: this};
+    var event = {
+      name: eventName,
+      targetScope: this,
+      preventDefault: function(){
+        this.defaultPrevented = true;
+      }
+    };
     var aditionalArgs = Array.prototype.slice.call(arguments, 1);
     var listenerArgs = [event].concat(aditionalArgs);
 
@@ -434,7 +445,11 @@ Scope.prototype.$$fireEventOnScope = function(eventName, listenerArgs){
     if(listeners[i] === null){
       listeners.splice(i, 1);
     } else {
-      listeners[i].apply(null, listenerArgs);
+      try{
+        listeners[i].apply(null, listenerArgs);
+      } catch(e){
+        console.error(e);
+      }
       i++;
     }
   }

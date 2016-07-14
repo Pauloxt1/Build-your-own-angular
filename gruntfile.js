@@ -17,7 +17,8 @@ module.exports = (grunt) => {
             beforeEach: false,
             afterEach: false,
             sinon: false,
-            Scope: false
+            Scope: false,
+            parse: false
           },
           browser:true,
           devel:true

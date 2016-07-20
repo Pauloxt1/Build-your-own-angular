@@ -3,7 +3,7 @@
 var ESCAPES = {
   'n' : '\n', 'f' : '\f', 'r': '\r', 't': '\t', 'v' : '\v',
   '\'': '\'', '"' : '"'
-}
+};
 
 function parse(expr){
   var lexer = new Lexer();
@@ -24,15 +24,15 @@ Lexer.prototype.lex = function(text){
 
   while(this.index < this.text.length){
     this.ch = this.text.charAt(this.index);
-    if(this.isNumber(this.ch) || (this.ch === '.' && this.isNumber(this.peek()))){
+    if(this.isNumber(this.ch) || (this.is('.') && this.isNumber(this.peek()))){
       this.readNumber();
-    } else if(this.ch === '\'' || this.ch === '"') {
+    } else if(this.is('"\'')) {
       this.readString(this.ch);
     } else if(this.isIdent(this.ch)){
       this.readIdent();
     } else if(this.isWhiteSpace(this.ch)){
       this.index++;
-    } else if(this.ch === '[' || this.ch === ']' || this.ch === ','){
+    } else if(this.is('[],{}:')){
       this.tokens.push({
         text:this.ch
       });
@@ -43,6 +43,10 @@ Lexer.prototype.lex = function(text){
   }
 
   return this.tokens;
+};
+
+Lexer.prototype.is = function(chs){
+  return (chs.indexOf(this.ch) >= 0);
 };
 
 Lexer.prototype.readString = function(quote){
@@ -117,20 +121,20 @@ Lexer.prototype.readNumber = function(){
 };
 
 Lexer.prototype.isNumber = function(ch){
-  return '0' <= ch && ch <= '9';
+  return ch >= '0' && ch <= '9';
 };
 
 Lexer.prototype.peek = function(){
   return (this.index < this.text.length - 1) ? this.text.charAt(this.index+1) : false;
-}
+};
 
 Lexer.prototype.isExpOperator = function(ch){
   return ch === '-' || ch === '+' || this.isNumber(ch);
-}
+};
 
 Lexer.prototype.isIdent = function(ch){
   return (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || ch === '_' || ch === '$';
-}
+};
 
 function AST(lexer){
   this.lexer = lexer;
@@ -148,17 +152,20 @@ Lexer.prototype.readIdent = function(){
     this.index++;
   }
 
-  var token = {text:text};
+  var token = {text:text, indentifier: true};
   this.tokens.push(token);
-}
+};
 
 Lexer.prototype.isWhiteSpace = function(ch){
   return ch === ' ' || ch === '\r' || ch === '\t' || ch === '\n' || ch === '\v' || ch === '\u00A0';
-}
+};
 
 AST.Program = 'Program';
 AST.Literal = 'Literal';
 AST.ArrayExpression = 'ArrayExpression';
+AST.ObjectExpression = 'ObjectExpression';
+AST.Property = 'Property';
+AST.Indentifier = 'Indentifier';
 
 AST.prototype.ast = function(text){
   this.tokens = this.lexer.lex(text);
@@ -172,19 +179,40 @@ AST.prototype.program = function(){
 AST.prototype.primary = function(){
   if(this.expect('[')){
     return this.arrayDeclaration();
+  } else if(this.expect('{')){
+    return this.object();
   } else if(this.constants.hasOwnProperty(this.tokens[0].text)){
     return this.constants[this.consume().text];
   } else {
     return this.constant();
   }
-}
+};
 
-AST.prototype.expect = function(e){
-  var token = this.peek(e);
-  if(token){
-    return this.tokens.shift();
+AST.prototype.object = function(){
+  var properties = [];
+  if(!this.peek('}')){
+    do{
+      var property = {type: AST.Property};
+
+      if(this.peek().indentifier){
+        property.key = this.indentifier();
+      } else {
+        property.key = this.constant();
+      }
+
+      this.consume(':');
+      property.value = this.primary();
+      properties.push(property);
+    }while(this.expect(','));
   }
-}
+  this.consume('}');
+  return {type: AST.ObjectExpression, properties: properties};
+};
+
+AST.prototype.indentifier = function(){
+  return {type: AST.Indentifier, name: this.consume().text};
+};
+
 
 AST.prototype.arrayDeclaration = function(){
   var elements = [];
@@ -199,7 +227,14 @@ AST.prototype.arrayDeclaration = function(){
   }
 
   this.consume(']');
-  return {type: AST.ArrayExpression, elements: elements}
+  return {type: AST.ArrayExpression, elements: elements};
+};
+
+AST.prototype.expect = function(e){
+  var token = this.peek(e);
+  if(token){
+    return this.tokens.shift();
+  }
 };
 
 AST.prototype.consume = function(e){
@@ -208,7 +243,7 @@ AST.prototype.consume = function(e){
     throw 'Unexpected.  Expecting: '+e;
   }
   return token;
-}
+};
 
 AST.prototype.peek = function(e){
   if(this.tokens.length > 0){
@@ -217,13 +252,13 @@ AST.prototype.peek = function(e){
       return this.tokens[0];
     }
   }
-}
+};
 
 AST.prototype.constants = {
   'null': {type:AST.Literal, value: null},
   'true': {type:AST.Literal, value: true},
   'false': {type:AST.Literal, value: false},
-}
+};
 
 AST.prototype.constant = function(){
   return {type: AST.Literal, value: this.consume().value};
@@ -250,12 +285,20 @@ ASTCompiler.prototype.recurse = function(ast){
     break;
     case AST.Literal:
       return this.escape(ast.value);
-    break;
     case AST.ArrayExpression:
       var elements = _.map(ast.elements, function(element){
           return self.recurse(element);
       });
       return '['+elements.join(',')+']';
+    case AST.ObjectExpression:
+    var properties = _.map(ast.properties, function(property){
+        var key = property.key.type === AST.Indentifier ?
+        property.key.name :
+        self.escape(property.key.value);
+        var value = self.recurse(property.value);
+        return key+':'+value;
+    });
+    return '{'+properties.join(',')+'}';
   }
 };
 
@@ -267,13 +310,13 @@ ASTCompiler.prototype.escape = function(value){
   } else {
     return value;
   }
-}
+};
 
 ASTCompiler.prototype.stringEscapeRegex = /[^ a-zA-Z0-9]/g;
 
 ASTCompiler.prototype.stringEscapeFn = function(c){
   return '\\u'+('000'+ c.charCodeAt(0).toString(16)).slice(-4);
-}
+};
 
 function Parser(lexer){
   this.lexer = lexer;

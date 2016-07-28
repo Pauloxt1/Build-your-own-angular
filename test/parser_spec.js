@@ -173,4 +173,160 @@ describe("parse", function(){
     expect(fn()).toBeUndefined();
   });
 
+  it("uses locals instead of scope when there is a matching key", function(){
+    var fn = parse('aKey');
+    var scope = {aKey: 42};
+    var locals = {aKey: 43};
+    expect(fn(scope, locals)).toBe(43);
+  });
+
+  it("does not use local instead of scope when no matching key", function(){
+    var fn = parse('aKey');
+    var scope = {aKey: 42};
+    var locals = {anotherKey: 43};
+    expect(fn(scope, locals)).toBe(42);
+  });
+
+  it("use locals instead of scope when the first part matches", function(){
+    var fn = parse('aKey.anotherKey');
+    var scope = {aKey:{anotherKey: 42}};
+    var locals = {aKey:{}};
+    expect(fn(scope, locals)).toBeUndefined();
+  });
+
+  it("parses a simple computed notation property acess", function(){
+    var fn = parse('aKey["anotherKey"]');
+    expect(fn({aKey: {anotherKey: 42}})).toBe(42);
+  });
+
+  it("parses a computed numeric array access", function(){
+    var fn = parse('anArray[1]');
+    expect(fn({anArray:[1,2,3]})).toBe(2);
+  });
+
+  it('parses a computed access with another key as property', function(){
+    var fn = parse('lock[key]');
+    expect(fn({key:'theKey', lock:{theKey: 42}})).toBe(42);
+  });
+
+  it("parses computed access with another access as property", function(){
+    var fn = parse('lock[keys["aKey"]]');
+    expect(fn({keys:{aKey: 'theKey'}, lock:{theKey: 42}})).toBe(42);
+  });
+
+  it("parses a function call", function(){
+    var fn = parse('aFunction()');
+    expect(fn({aFunction: function(){ return 42; }})).toBe(42);
+  });
+
+  it("parses a function call with a single number argument", function(){
+    var fn = parse('aFunction(42)');
+    expect(fn({aFunction: function(n){ return n;}})).toBe(42);
+  });
+
+  it("parses a function call with a single indentifer argument", function(){
+    var fn = parse('aFunction(n)');
+    expect(fn({n:42, aFunction: function(n){ return n;}})).toBe(42);
+  });
+
+  it('parses a function with a single function call argument', function(){
+    var fn = parse('aFunction(argFn())');
+    expect(fn({
+      argFn: _.constant(42),
+      aFunction: function(n){ return n;}
+    })).toBe(42);
+  });
+
+  it('parses a function call with multiple arguments', function(){
+    var fn = parse('aFunction(37, n, argFn())');
+    expect(fn({
+      n: 3,
+      argFn: _.constant(2),
+      aFunction: function(a1,a2,a3){ return a1+a2+a3;}
+    })).toBe(42);
+  });
+
+  it("calls methods accessed as computed properties", function(){
+    var scope = {
+      anObject:{
+        aMember:42,
+        aFunction: function(){
+          return this.aMember;
+        }
+      }
+    };
+    var fn = parse('anObject["aFunction"]()');
+    expect(fn(scope)).toBe(42);
+  });
+
+  it("calls methods accessed as non-computed properties", function(){
+    var scope = {
+      anObject:{
+        aMember:42,
+        aFunction: function(){
+          return this.aMember;
+        }
+      }
+    };
+    var fn = parse('anObject.aFunction()');
+    expect(fn(scope)).toBe(42);
+  });
+
+  it("binds bare functions to the scope", function(){
+    var scope = {
+      aFunction: function(){
+        return this;
+      }
+    }
+    var fn = parse('aFunction()');
+    expect(fn(scope)).toBe(scope);
+  });
+
+  it("binds bare functions on locals to the locals", function(){
+    var scope = {};
+    var locals = {
+      aFunction: function(){
+        return this;
+      }
+    };
+    var fn = parse('aFunction()');
+    expect(fn(scope, locals)).toBe(locals);
+  });
+
+  it("parses a simple attribute assignment", function(){
+    var fn = parse('anAttribute = 42');
+    var scope = {};
+    fn(scope);
+    expect(scope.anAttribute).toBe(42);
+  });
+
+  it("can assing any primary expression", function(){
+    var fn = parse("anAttribute = aFunction()");
+    var scope = {aFunction : _.constant(42)};
+    fn(scope);
+    expect(scope.anAttribute).toBe(42);
+  });
+
+  it('can assing a computed object property', function(){
+    var fn = parse('anObject["anAttribute"] = 42');
+    var scope = {anObject: {}};
+    fn(scope);
+    expect(scope.anObject.anAttribute).toBe(42);
+  });
+
+  it('can assing a non-computed object property', function(){
+    var fn = parse('anObject.anAttribute = 42');
+    var scope = {anObject: {}};
+    fn(scope);
+    expect(scope.anObject.anAttribute).toBe(42);
+  });
+
+  it("can assing a nested object property", function(){
+    var fn = parse('anArray[0].anAttribute = 42');
+    var scope = {anArray: [{}]};
+    fn(scope);
+    expect(scope.anArray[0].anAttribute).toBe(42);
+  });
+
+
 });

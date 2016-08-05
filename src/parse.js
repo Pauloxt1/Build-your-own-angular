@@ -8,7 +8,10 @@ var ESCAPES = {
 var OPERATORS = {
   '+': true,
   '!': true,
-  '-': true
+  '-': true,
+  '*': true,
+  '/': true,
+  '%': true
 };
 
 var CALL = Function.prototype.call;
@@ -228,6 +231,7 @@ AST.MemberExpression = 'MemberExpression';
 AST.CallExpression = 'CallExpression';
 AST.AssignmentExpression = 'AssignmentExpression';
 AST.UnaryExpression = 'UnaryExpression';
+AST.BinaryExpression = 'BinaryExpression';
 
 AST.prototype.ast = function(text){
   this.tokens = this.lexer.lex(text);
@@ -368,9 +372,9 @@ AST.prototype.constant = function(){
 };
 
 AST.prototype.assignment = function(){
-  var left = this.unary();
+  var left = this.addtive();
   if(this.expect('=')){
-    var right = this.unary();
+    var right = this.addtive();
     return {type: AST.AssignmentExpression, left:left, right:right};
   }
   return left;
@@ -388,6 +392,35 @@ AST.prototype.unary = function(){
   } else {
     return this.primary();
   }
+};
+
+AST.prototype.multiplicative = function(){
+  var left = this.unary();
+  var token;
+
+  while((token = this.expect('*', '/', '%'))){
+    left = {
+      type: AST.BinaryExpression,
+      left: left,
+      operator: token.text,
+      right: this.unary()
+    };
+  }
+  return left;
+};
+
+AST.prototype.addtive = function(){
+  var left = this.multiplicative();
+  var token;
+  while((token = this.expect('+')) || (token = this.expect('-'))){
+    left = {
+      type: AST.BinaryExpression,
+      left: left,
+      operator: token.text,
+      right: this.multiplicative()
+    };
+  }
+  return left;
 };
 
 ASTCompiler.prototype.compile = function(text){
@@ -523,6 +556,12 @@ ASTCompiler.prototype.recurse = function(ast, context, create){
 
     case AST.UnaryExpression:
       return ast.operator+'('+this.ifDefined(this.recurse(ast.argument), 0)+')';
+    case AST.BinaryExpression:
+     if(ast.operator === '+' || ast.operator === '-'){
+       return '('+this.ifDefined(this.recurse(ast.left), 0)+')'+ast.operator+'('+this.ifDefined(this.recurse(ast.right), 0)+')';
+     } else {
+       return '('+this.recurse(ast.left)+')'+ast.operator+'('+this.recurse(ast.right)+')';
+    }
   }
 };
 

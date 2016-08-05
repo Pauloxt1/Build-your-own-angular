@@ -488,4 +488,43 @@ describe("parse", function(){
     expect(parse('"!"')()).toBe('!');
   });
 
+  it("parses a multiplication", function(){
+    expect(parse('21 * 2')()).toBe(42);
+  });
+
+  it("parses a divsion", function(){
+    expect(parse('84 / 2')()).toBe(42);
+  });
+
+  it("parses a remainder", function(){
+    expect(parse('85 % 43')()).toBe(42);
+  });
+
+  it("parses several multiplicatives", function(){
+    expect(parse("36 * 2 % 5")()).toBe(2);
+  });
+
+  it("parses an addition", function(){
+    expect(parse('20+22')()).toBe(42);
+  });
+
+  it("parses a subtraction", function(){
+    expect(parse('42 - 22')()).toBe(20);
+  });
+
+  it("parses a multiplicatives on higher precedence than addtives", function(){
+    expect(parse('2+3*5')()).toBe(17);
+    expect(parse('2+3*2+3')()).toBe(11);
+  });
+
+  it("substitutes undefined with zero in addition", function(){
+    expect(parse('a+22')()).toBe(22);
+    expect(parse('42+a')()).toBe(42);
+  });
+
+  it("substitutes undefined with zero in subtraction", function(){
+    expect(parse('a -22')()).toBe(-22);
+    expect(parse('42 -a')()).toBe(42);
+  });
+
 });

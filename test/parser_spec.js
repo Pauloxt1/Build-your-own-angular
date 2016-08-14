@@ -1,4 +1,3 @@
-/* jshint globalstrict: true */
 /* global filter: false, register: false */
 'use strict';
 
@@ -644,6 +643,43 @@ describe("parse", function(){
     });
     var fn = parse('aString | upcase');
     expect(fn({aString: 'hello'})).toEqual('HELLO');
+  });
+
+  it("can parse filter chain expression", function(){
+
+    register('upcase', function(){
+      return function(s){
+        return s.toUpperCase();
+      };
+    });
+    register('exclamate', function(){
+      return function(s){
+        return s+'!';
+      };
+    });
+
+    var fn = parse('"hello" | upcase | exclamate');
+    expect(fn()).toEqual('HELLO!');
+  });
+
+  it("can pass an addtional argument to filters", function(){
+    register('repeat', function(){
+      return function(s, times){
+        return _.repeat(s, times);
+      };
+    });
+    var fn = parse('"hello" | repeat:3');
+    expect(fn()).toBe('hellohellohello');
+  });
+
+  it("can parse several arguments to filter", function(){
+    register('surround', function(){
+      return function(s, left, right){
+        return left+s+right;
+      };
+    });
+    var fn = parse('"hello" | surround:"*":"!"');
+    expect(fn()).toBe("*hello!");
   });
 
 });

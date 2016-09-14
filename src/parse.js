@@ -134,14 +134,79 @@ function parse(expr){
     case 'string':
       var lexer = new Lexer();
       var parser = new Parser(lexer);
-      return parser.parse(expr);
+      var oneTime = false;
 
+      if(expr.charAt(0) === ':' && expr.charAt(1) === ':'){
+        oneTime = true;
+        expr = expr.substring(2);
+      }
+
+      var parseFn = parser.parse(expr);
+      if(parseFn.constant){
+        parseFn.$$watchDelegate = constantWatchDelegate;
+      } else if(oneTime){
+        parseFn.$$watchDelegate = parseFn.literal ? oneTimeLiteralWatchDelegate : oneTimeWatchDelegate;
+      }
+
+      return parseFn;
     case 'function':
      return expr;
 
     default:
       return _.noop;
   }
+}
+
+function constantWatchDelegate(scope, listerFn, valueEq, watchFn){
+  var unWatch = scope.$watch(function(){
+    return watchFn(scope);
+  }, function(newValue, oldValue, scope){
+    if(_.isFunction(listerFn)){
+      listerFn.apply(this, arguments);
+    }
+    return unWatch();
+  });
+}
+
+function oneTimeWatchDelegate(scope, listerFn, valueEq, watchFn){
+  var lastValue;
+  var unWatch = scope.$watch(function(){
+    return watchFn(scope);
+  }, function(newValue, oldValue, scope){
+    lastValue = newValue;
+    if(_.isFunction(listerFn)){
+      listerFn.apply(this, arguments);
+    }
+    if(!_.isUndefined(newValue)){
+      scope.$$postDigest(function(){
+        if(!_.isUndefined(lastValue)){
+          unWatch();
+        }
+      });
+    }
+  }, valueEq);
+  return unWatch;
+}
+
+function oneTimeLiteralWatchDelegate(scope, listerFn, valueEq, watchFn){
+  function isAllDefined(val){
+      return !_.some(val, _.isUndefined);
+  }
+  var unWatch = scope.$watch(function(){
+    return watchFn(scope);
+  }, function(newValue, oldValue, scope){
+    if(_.isFunction(listerFn)){
+      listerFn.apply(this, arguments);
+    }
+    if(isAllDefined(newValue)){
+      scope.$$postDigest(function(){
+        if(isAllDefined(newValue)){
+          unWatch();
+        }
+      });
+    }
+  }, valueEq);
+  return unWatch;
 }
 
 function ifDefined(value, defaultValue){
